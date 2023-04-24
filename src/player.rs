@@ -76,7 +76,7 @@ impl Player {
     }
 
     pub fn can_claim_lantern(&self, lantern: &Lantern) -> bool {
-        (lantern.pos - self.actor.collider.point()).length() < 10.0
+        self.actor.collider.point().distance(lantern.pos) < 10.0
     }
 
     pub fn claim_lantern(&mut self, lantern: &mut Lantern, assets: &Assets) {
@@ -88,7 +88,15 @@ impl Player {
 
     fn fly_towards_spawnpoint(&mut self) {
         let fly_dir = (self.respawn_position - self.actor.collider.point()).normalize_or_zero();
-        self.actor.collider = self.actor.collider.offset(fly_dir * get_frame_time());
+        self.actor.collider = self.actor.collider.offset(fly_dir * get_frame_time() * 100.0);
+
+        // Still flying to it
+        if self.actor.collider.point().distance(self.respawn_position) > 2.0 {
+            return;
+        }
+
+        self.actor.collider.move_to(self.respawn_position);
+        self.is_dead = false;
     }
 
     pub fn update(&mut self, assets: &Assets, solids: &Vec<Solid>) {
@@ -133,7 +141,7 @@ impl Player {
 
         if y_collision.has_collided {
             // Splat and DIE!
-            if self.velocity.y > 5.0 {
+            if self.velocity.y > 100.0 {
                 self.is_dead = true;
             }
 

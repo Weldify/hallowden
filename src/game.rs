@@ -44,21 +44,20 @@ impl Game {
     }
 
     fn claim_lanterns(&mut self) {
-        let lantern_to_claim = self
+        let index_to_claim_opt = self
             .lanterns
             .iter()
-            .filter(|l| self.player.can_claim_lantern(l) && !l.is_claimed)
-            .next();
+            .enumerate()
+            .filter(|(i, l)| self.player.can_claim_lantern(l) && !l.is_claimed)
+            .next()
+            .map(|pair| pair.0);
 
-        if let Some(claimed_lantern) = lantern_to_claim {
-            for lantern in self.lanterns.iter_mut() {
-                if std::ptr::eq(lantern, claimed_lantern) {
-                    self.player.claim_lantern(lantern, &self.assets);
-                } else {
-                    lantern.is_claimed = false;
-                }
-            }
-        }
+        let Some(index_to_claim) = index_to_claim_opt else {
+            return;
+        };
+
+        self.lanterns.iter_mut().for_each(|l| l.is_claimed = false);
+        self.player.claim_lantern(&mut self.lanterns[index_to_claim], &self.assets)
     }
 
     pub fn update(&mut self) {

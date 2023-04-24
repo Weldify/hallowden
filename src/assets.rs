@@ -12,25 +12,29 @@ pub struct Assets {
     pub claim_sound: Sound,
 }
 
+macro_rules! load_sound {
+    ($filepath:literal) => {
+        load_sound_from_bytes(include_bytes!($filepath))
+            .await
+            .unwrap()
+    }
+}
+
+macro_rules! load_texture {
+    ($filepath:literal, $format:expr) => {
+        Texture2D::from_file_with_format(include_bytes!($filepath), Some($format))
+    }
+}
+
 impl Assets {
     pub async fn new() -> Assets {
-        let spritesheet_bytes = include_bytes!("../assets/spritesheet.png");
-        let spritesheet =
-            Texture2D::from_file_with_format(spritesheet_bytes, Some(ImageFormat::Png));
+        let spritesheet = load_texture!("../assets/spritesheet.png", ImageFormat::Png);
         spritesheet.set_filter(FilterMode::Nearest);
 
-        let bounce_sound = load_sound_from_bytes(include_bytes!("../assets/bounce.ogg"))
-            .await
-            .unwrap();
-        let jump_sound = load_sound_from_bytes(include_bytes!("../assets/jump.ogg"))
-            .await
-            .unwrap();
-        let land_sound = load_sound_from_bytes(include_bytes!("../assets/land.ogg"))
-            .await
-            .unwrap();
-        let claim_sound = load_sound_from_bytes(include_bytes!("../assets/claim.ogg"))
-            .await
-            .unwrap();
+        let bounce_sound = load_sound!("../assets/bounce.ogg");
+        let jump_sound = load_sound!("../assets/jump.ogg");
+        let land_sound = load_sound!("../assets/land.ogg");
+        let claim_sound = load_sound!("../assets/claim.ogg");
 
         Assets {
             spritesheet,
