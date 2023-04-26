@@ -1,9 +1,7 @@
-use macroquad::{
-    audio::{play_sound, play_sound_once, PlaySoundParams, set_sound_volume},
-    prelude::*,
+use crate::{
+    actor::Actor, assets::Assets, lantern::Lantern, solid::Solid, utils::play_sound_once_vol,
 };
-
-use crate::{actor::Actor, assets::Assets, solid::Solid, utils::play_sound_once_vol, lantern::Lantern};
+use macroquad::prelude::*;
 
 pub struct Player {
     velocity: Vec2,
@@ -11,7 +9,7 @@ pub struct Player {
     is_grounded: bool,
     jump_power: f32,
 
-    is_dead: bool,
+    pub is_dead: bool,
     pub respawn_position: Vec2,
 
     pub actor: Actor,
@@ -30,19 +28,6 @@ impl Player {
 
             actor: Actor::new(Rect::new(0.0, 0.0, 6.0, 8.0)),
         }
-    }
-
-    fn move_ground(&mut self) {
-        // move_ground has no authority over aerial movement
-        if !self.is_grounded {
-            return;
-        }
-
-        let ground_move =
-            is_key_down(KeyCode::D) as i32 as f32 - is_key_down(KeyCode::A) as i32 as f32;
-
-        // No frame time since this is non accumulating
-        self.velocity.x = ground_move * 15.0;
     }
 
     fn do_jump(&mut self, assets: &Assets) {
@@ -72,7 +57,7 @@ impl Player {
         self.jump_power = 0.0;
         self.is_grounded = false;
 
-		play_sound_once_vol(assets.jump_sound, 0.5);
+        play_sound_once_vol(assets.jump_sound, 0.5);
     }
 
     pub fn can_claim_lantern(&self, lantern: &Lantern) -> bool {
@@ -87,8 +72,12 @@ impl Player {
     }
 
     fn fly_towards_spawnpoint(&mut self) {
-        let fly_dir = (self.respawn_position - self.actor.collider.point()).normalize_or_zero();
-        self.actor.collider = self.actor.collider.offset(fly_dir * get_frame_time() * 100.0);
+        self.actor.collider.move_to(
+            self.actor
+                .collider
+                .point()
+                .lerp(self.respawn_position, get_frame_time() * 5.0),
+        );
 
         // Still flying to it
         if self.actor.collider.point().distance(self.respawn_position) > 2.0 {
@@ -105,10 +94,15 @@ impl Player {
             return;
         }
 
-        self.move_ground();
+        if self.is_grounded {
+            self.velocity.x = 0.0;
+            self.velocity.y = 0.0;
+        }
 
-        if self.velocity.x != 0.0 {
-            self.is_flipped = self.velocity.x < 0.0;
+        let input_side =
+            is_key_down(KeyCode::D) as i32 as f32 - is_key_down(KeyCode::A) as i32 as f32;
+        if self.is_grounded && input_side != 0.0 {
+            self.is_flipped = input_side < 0.0;
         }
 
         self.do_jump(assets);
@@ -125,41 +119,51 @@ impl Player {
         // Bounce
         if !self.is_grounded && x_collision.has_collided {
             self.velocity.x = -self.velocity.x;
-			self.is_flipped = self.velocity.x < 0.0;
-			play_sound_once_vol(assets.bounce_sound, 0.35);
+            self.is_flipped = self.velocity.x < 0.0;
+            play_sound_once_vol(assets.bounce_sound, 0.35);
         }
 
         // Only update grounded if we actually moved
         if y_collision.has_moved {
-			let was_grounded = self.is_grounded;
+            let was_grounded = self.is_grounded;
             self.is_grounded = y_collision.has_collided && y_collision.collision_side > 0.0;
 
-			if !was_grounded && self.is_grounded {
-				play_sound_once_vol(assets.land_sound, 0.5);
-			}
+            if !was_grounded && self.is_grounded {
+                play_sound_once_vol(assets.land_sound, 0.5);
+            }
         }
 
         if y_collision.has_collided {
             // Splat and DIE!
             if self.velocity.y > 100.0 {
                 self.is_dead = true;
+                self.velocity = Vec2::ZERO;
+                play_sound_once_vol(assets.death_sound, 0.2)
             }
 
             self.velocity.y = 0.0;
         }
     }
 
-    pub fn draw_soul(&self) {
-        let center = self.actor.collider.center();
-        draw_circle(center.x, center.y, 3.0, WHITE);
+    pub fn draw_soul(&self, assets: &Assets) {
+        draw_texture_ex(
+            assets.spritesheet,
+            self.actor.collider.x - 1.0, // Collider is 6 wide, sprite is 8 wide
+            self.actor.collider.y,
+            WHITE,
+            DrawTextureParams {
+                source: Some(Rect::new(48.0, 0.0, 8.0, 8.0)),
+                ..Default::default()
+            },
+        );
     }
 
     pub fn draw(&self, assets: &Assets) {
         if self.is_dead {
-            self.draw_soul();
+            self.draw_soul(assets);
             return;
         }
-        
+
         let mut sprite_x: f32 = 0.0;
 
         // Charging jump sprite

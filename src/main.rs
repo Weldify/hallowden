@@ -13,7 +13,6 @@ mod player;
 mod lantern;
 
 use game::*;
-
 #[macroquad::main("Hallowden")]
 async fn main() {
     let mut game = Game::new().await;
@@ -48,7 +47,9 @@ async fn main() {
 
         game.update();
 
+        render_camera.target = game.camera_pos;
         set_camera(&render_camera);
+
         game.draw();
         set_default_camera();
 
